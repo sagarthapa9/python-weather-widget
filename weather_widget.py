@@ -17,8 +17,8 @@ TXT_COLOR = "#000000" #sg.theme_background_color()
 ALPHA = 0.8
 
 APP_DATA = {
-    'City': 'Charlotte',
-    'Country': 'US',
+    'City': 'Oxford',
+    'Country': 'GB',
     'Postal': None,
     'Description': 'clear skys',
     'Temp': 101.0,
@@ -29,23 +29,25 @@ APP_DATA = {
     'Pressure': 0,
     'Updated': 'Not yet updated',
     'Icon': None,
-    'Units': 'Imperial'
+    'Units': 'metric',
+    'Lat':0,
+    'Lon':0
 }
 
-API_KEY = "786af9fe6332d5da4af55ec5a90c4d4e"
+API_KEY = "APIKEY"
 
 def create_endpoint(endpoint_type=0):
     """ Create the api request endpoint
     {0: default, 1: zipcode, 2: city_name}"""
     if endpoint_type == 1:
         try:
-            endpoint = f"http://api.openweathermap.org/data/2.5/weather?zip={APP_DATA['Postal']},us&appid={API_KEY}&units={APP_DATA['Units']}"
+            endpoint = f"http://api.openweathermap.org/data/2.5/weather?lat={APP_DATA['Lat']}&lon={APP_DATA['Lon']}&appid={API_KEY}&units={APP_DATA['Units']}"
             return endpoint
         except ConnectionError:
             return
     elif endpoint_type == 2:
         try:
-            endpoint = f"http://api.openweathermap.org/data/2.5/weather?q={APP_DATA['City'].replace(' ','%20')},us&APPID={API_KEY}&units={APP_DATA['Units']}"
+            endpoint = f"http://api.openweathermap.org/data/2.5/weather?q={APP_DATA['City']}&appid={API_KEY}&units={APP_DATA['Units']}"
             return endpoint
         except ConnectionError:
             return
@@ -68,14 +70,15 @@ def request_weather_data(endpoint):
     
     if response.reason == 'OK':
         weather = json.loads(response.read())
+        print(weather);
         APP_DATA['City'] = weather['name'].title()
         APP_DATA['Description'] = weather['weather'][0]['description']
-        APP_DATA['Temp'] = "{:,.0f}°F".format(weather['main']['temp'])
+        APP_DATA['Temp'] = "{:,.0f}°C".format(weather['main']['temp'])
         APP_DATA['Humidity'] = "{:,d}%".format(weather['main']['humidity'])
         APP_DATA['Pressure'] = "{:,d} hPa".format(weather['main']['pressure'])
-        APP_DATA['Feels Like'] = "{:,.0f}°F".format(weather['main']['feels_like'])
+        APP_DATA['Feels Like'] = "{:,.0f}°C".format(weather['main']['feels_like'])
         APP_DATA['Wind'] = "{:,.1f} m/h".format(weather['wind']['speed'])
-        APP_DATA['Precip 1hr'] = None if not weather.get('rain') else "{:,d} mm".format(weather['rain']['1hr'])
+       # APP_DATA['Precip 1hr'] = None if not weather.get('rain') else "{:,d} mm".format(weather['rain']['1hr'])
         APP_DATA['Updated'] = 'Updated: ' + datetime.datetime.now().strftime("%B %d %I:%M:%S %p")
         
         icon_url = "http://openweathermap.org/img/wn/{}@2x.png".format(weather['weather'][0]['icon'])
@@ -114,7 +117,7 @@ def create_window():
     bot_col = sg.Column([[col3, col4]], pad=(0, 0), background_color=BG_COLOR, key='BotCOL')
 
     lf_col = sg.Column(
-        [[sg.Text(APP_DATA['Temp'], font=('Haettenschweiler', 90), pad=((10, 0), (0, 0)), justification='center', key='Temp')]],
+        [[sg.Text(APP_DATA['Temp'], font=('Haettenschweiler', 50), pad=((10, 0), (0, 0)), justification='center', key='Temp')]],
             pad=(10, 0), element_justification='center', key='LfCOL')
 
     rt_col = sg.Column(
@@ -168,8 +171,10 @@ def main(refresh_rate):
 
     # Try to get the current users ip location
     try:
-        postal = json.loads(request.urlopen('http://ipapi.co/json').read())['postal']
-        APP_DATA['Postal'] = postal
+        lat = json.loads(request.urlopen('http://ipapi.co/json').read())['latitude']
+        lon = json.loads(request.urlopen('http://ipapi.co/json').read())['longitude']
+        APP_DATA['Lat'] = lat
+        APP_DATA['Lon'] = lon
         request_weather_data(create_endpoint(1))
     except ConnectionError:
         pass
