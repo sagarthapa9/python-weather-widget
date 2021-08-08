@@ -34,20 +34,21 @@ APP_DATA = {
     'Lon':0
 }
 
-API_KEY = "APIKEY"
+API_KEY = "92578d9ab5b8dbadfefe56e291d15030"
 
 def create_endpoint(endpoint_type=0):
     """ Create the api request endpoint
     {0: default, 1: zipcode, 2: city_name}"""
     if endpoint_type == 1:
         try:
-            endpoint = f"http://api.openweathermap.org/data/2.5/weather?lat={APP_DATA['Lat']}&lon={APP_DATA['Lon']}&appid={API_KEY}&units={APP_DATA['Units']}"
+            #endpoint = f"http://api.openweathermap.org/data/2.5/hourly?lat={APP_DATA['Lat']}&lon={APP_DATA['Lon']}&appid={API_KEY}&units={APP_DATA['Units']}"
+            endpoint = f" https://api.openweathermap.org/data/2.5/onecall?lat={APP_DATA['Lat']}&lon={APP_DATA['Lon']}&exclude=minutely,hourly&appid={API_KEY}"
             return endpoint
         except ConnectionError:
             return
     elif endpoint_type == 2:
         try:
-            endpoint = f"http://api.openweathermap.org/data/2.5/weather?q={APP_DATA['City']}&appid={API_KEY}&units={APP_DATA['Units']}"
+            endpoint = f"http://api.openweathermap.org/data/2.5/hourly?q={APP_DATA['City']}&appid={API_KEY}&units={APP_DATA['Units']}"
             return endpoint
         except ConnectionError:
             return
