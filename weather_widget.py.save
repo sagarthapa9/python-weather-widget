@@ -1,5 +1,6 @@
 import datetime
-import time 
+import time
+from datetime import datetime 
 from serial import Serial
 import base64
 from urllib import request
@@ -41,10 +42,6 @@ microbit_data = {
 }
 
 API_KEY = "92578d9ab5b8dbadfefe56e291d15030"
-
-def measure_cpu_temp():
-        temp = os.popen("vcgencmd measure_temp").readline()
-        return  (temp.replace("temp=","").replace("'C",  chr(176)+ "C"))
 
 def load_serial_data():
     nxtLtlPoll = 0.0
@@ -106,13 +103,14 @@ def create_endpoint(endpoint_type=0):
     {0: default, 1: zipcode, 2: city_name}"""
     if endpoint_type == 1:
         try:
-            endpoint = f"http://api.openweathermap.org/data/2.5/weather?lat={APP_DATA['Lat']}&lon={APP_DATA['Lon']}&appid={API_KEY}&units={APP_DATA['Units']}"
-            return endpoint
+            endpoint = f"http://api.openweathermap.org/data/2.5/hourly?lat={APP_DATA['Lat']}&lon={APP_DATA['Lon']}&appid={API_KEY}&units={APP_DATA['Units']}"
+           
+ return endpoint
         except ConnectionError:
             return
     elif endpoint_type == 2:
         try:
-            endpoint = f"http://api.openweathermap.org/data/2.5/weather?q={APP_DATA['City']}&appid={API_KEY}&units={APP_DATA['Units']}"
+            endpoint = f"http://api.openweathermap.org/data/2.5/hourly?q={APP_DATA['City']}&appid={API_KEY}&units={APP_DATA['Units']}"
             return endpoint
         except ConnectionError:
             return
@@ -135,7 +133,7 @@ def request_weather_data(endpoint):
     
     if response.reason == 'OK':
         weather = json.loads(response.read())
-        print(weather)
+        print(weather);
         APP_DATA['City'] = weather['name'].title()
         APP_DATA['Description'] = weather['weather'][0]['description']
         APP_DATA['Temp'] = "{:,.0f}°C".format(weather['main']['temp'])
@@ -165,13 +163,11 @@ def create_window():
             background_color=BG_COLOR, key='COL1')
 
     col_serial_data = sg.Column(
-    [[sg.Text("Room Temp: "+ str(microbit_data['temp']), font=('Arial Rounded MT Bold', 12),size=(18, 1), background_color=BG_COLOR, text_color=TXT_COLOR, key='-TMP-')],
-     [sg.Text("Light Lvl"+ str(microbit_data['lightLevel']), font=('Arial Rounded MT Bold',12), size=(10,1), background_color=BG_COLOR, text_color=TXT_COLOR, key='-LTL-')],
-     [sg.Text("CPU Temp: "+ str(measure_cpu_temp()), font=('Arial Rounded MT Bold', 12),size=(18, 1), background_color=BG_COLOR, text_color=TXT_COLOR, key='-CPU-')]],
+    [[sg.Text("Room Temp: "+ str(microbit_data['temp']), font=('Arial Rounded MT Bold', 12), pad=((10, 0), (50, 0)), size=(18, 1), background_color=BG_COLOR, text_color=TXT_COLOR, key='-TMP-')]],
         background_color=BG_COLOR, key='COLS')
 
     col2 = sg.Column(
-        [[sg.Text('×', font=('Arial Black', 16), pad=(0, 0), background_color=BG_COLOR, text_color=TXT_COLOR, enable_events=True, key='-QUIT-')],
+        [[sg.Text('×', font=('Arial Black', 16), pad=(0, 0), justification='right', background_color=BG_COLOR, text_color=TXT_COLOR, enable_events=True, key='-QUIT-')],
         [sg.Image(data=APP_DATA['Icon'], pad=((5, 10), (0, 0)), size=(100, 100), background_color=BG_COLOR, key='Icon')]],
             element_justification='center', background_color=BG_COLOR, key='COL2')
 
@@ -258,7 +254,7 @@ def main(refresh_rate):
 
     # Event loop
     while True:
-        event, _ = window.read(timeout=200)
+        event, _ = window.read(timeout=timeout_minutes)
         res= load_serial_data()
 
         if event in (None, '-QUIT-'):
@@ -266,13 +262,11 @@ def main(refresh_rate):
         if event == '-CHANGE-':
             change_city(window)
         else:
-         window['-TMP-'].update("Room Temp: " + str( res['temp'])+ chr(176)+ "C")
-         window['-LTL-'].update("Light: "+ str( res['lightLevel']))
-         window['-CPU-'].update("CPU Temp: "+ str(measure_cpu_temp()))
+         window['-TMP-'].update(res['temp'])
+         window['-LTL-'].update(res['lightLevel'])
 
         # Update per refresh rate
         request_weather_data(create_endpoint(2))
-        #time.sleep(60)
         update_metrics(window)
 
     window.close()
