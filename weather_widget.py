@@ -3,7 +3,7 @@ import base64
 from urllib import request
 import json
 import PySimpleGUI as sg
-
+import os
 
 """
     THEMES
@@ -127,9 +127,9 @@ def create_window():
 
     layout = [[top_col], [lf_col, rt_col], [bot_col]]
 
-    window = sg.Window(layout=layout, title='Weather Widget', size=(400, 315), margins=(0, 0), finalize=True, 
+    window = sg.Window(layout=layout, title='Weather Widget', size=(480, 320), margins=(0, 0), finalize=True, 
         element_justification='center', keep_on_top=True, no_titlebar=True, grab_anywhere=True, alpha_channel=ALPHA)
-
+    window.Maximize()
     for col in ['COL1', 'COL2', 'TopCOL', 'BotCOL', '-QUIT-']:
         window[col].expand(expand_y=True, expand_x=True)
 
@@ -179,6 +179,9 @@ def main(refresh_rate):
         request_weather_data(create_endpoint(1))
     except ConnectionError:
         pass
+    if os.environ.get('DISPLAY','')== '':
+        print('no display found. Using:0.0')
+        os.environ.__setitem__('DISPLAY',':0.0')
 
     # Create main window
     window = create_window()
