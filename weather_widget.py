@@ -36,7 +36,7 @@ APP_DATA = {
     'Lon':0
 }
 microbit_data = {
-    'temp': 0,
+    'roomTemp': 0,
     'lightLevel': 0,
 }
 
@@ -77,10 +77,10 @@ def load_serial_data():
                         serial.write(sendMsg + b'\n')
                     
                     elif ( msgType == b'TMP' ):
-                           microbit_data['temp'] = msgData.decode('ascii').rstrip()
+                           microbit_data['roomTemp'] = msgData.decode('ascii').rstrip()+ chr(176)+ "C"
                            
                     elif ( msgType == b'LTL' ):
-                        microbit_data['lightLevel'] = msgData.decode('ascii').rstrip()
+                        microbit_data['lightLevel'] = msgData.decode('ascii').rstrip() 
                         
                     return microbit_data
                     
@@ -143,8 +143,8 @@ def request_weather_data(endpoint):
         APP_DATA['Pressure'] = "{:,d} hPa".format(weather['main']['pressure'])
         APP_DATA['Feels Like'] = "{:,.0f}°C".format(weather['main']['feels_like'])
         APP_DATA['Wind'] = "{:,.1f} m/h".format(weather['wind']['speed'])
-       # APP_DATA['Precip 1hr'] = None if not weather.get('rain') else "{:,d} mm".format(weather['rain']['1hr'])
-        APP_DATA['Updated'] = 'Updated: ' + datetime.datetime.now().strftime("%B %d %I:%M:%S %p")
+        APP_DATA['Precip 1hr'] = None if not weather.get('rain') else "{:,d} mm".format(weather['rain']['1hr'])
+        APP_DATA['Updated'] = datetime.datetime.now().strftime("%B %d %I:%M %p")
         
         icon_url = "http://openweathermap.org/img/wn/{}@2x.png".format(weather['weather'][0]['icon'])
         APP_DATA['Icon'] = base64.b64encode(request.urlopen(icon_url).read())
@@ -165,8 +165,8 @@ def create_window():
             background_color=BG_COLOR, key='COL1')
 
     col_serial_data = sg.Column(
-    [[sg.Text("Room Temp: "+ str(microbit_data['temp']), font=('Arial Rounded MT Bold', 12),size=(18, 1), background_color=BG_COLOR, text_color=TXT_COLOR, key='-TMP-')],
-     [sg.Text("Light Lvl"+ str(microbit_data['lightLevel']), font=('Arial Rounded MT Bold',12), size=(10,1), background_color=BG_COLOR, text_color=TXT_COLOR, key='-LTL-')],
+    [
+     [sg.Text("Room Light: "+ str(microbit_data['lightLevel']), font=('Arial Rounded MT Bold',12), size=(18,1), background_color=BG_COLOR, text_color=TXT_COLOR, key='-LTL-')],
      [sg.Text("CPU Temp: "+ str(measure_cpu_temp()), font=('Arial Rounded MT Bold', 12),size=(18, 1), background_color=BG_COLOR, text_color=TXT_COLOR, key='-CPU-')]],
         background_color=BG_COLOR, key='COLS')
 
@@ -176,7 +176,7 @@ def create_window():
             element_justification='center', background_color=BG_COLOR, key='COL2')
 
     col3 = sg.Column(
-        [[sg.Text(APP_DATA['Updated'], font=('Arial', 8), background_color=BG_COLOR, text_color=TXT_COLOR, key='Updated')]],
+        [[sg.Text(APP_DATA['Updated'], font=('Arial', 15), background_color=BG_COLOR, text_color=TXT_COLOR, key='Updated')]],
             pad=(10, 5), element_justification='left', background_color=BG_COLOR, key='COL3')
 
     col4 = sg.Column(
@@ -188,11 +188,13 @@ def create_window():
     bot_col = sg.Column([[col3, col4]], pad=(0, 0), background_color=BG_COLOR, key='BotCOL')
 
     lf_col = sg.Column(
-        [[sg.Text(APP_DATA['Temp'], font=('Haettenschweiler', 50), pad=((10, 0), (0, 0)), justification='center', key='Temp')]],
-            pad=(10, 0), element_justification='center', key='LfCOL')
+        [
+            [sg.Text('Room Temperature', font=('Haettenschweiler', 10), key='-TXT-')],
+            [sg.Text(str(microbit_data['roomTemp']), font=('Arial Rounded MT Bold', 40), size=(5, 1), text_color=TXT_COLOR, key='-TMP-')]],
+                 pad=(10, 0), element_justification='center', key='LfCOL')
 
     rt_col = sg.Column(
-        [metric_row('Feels Like'), metric_row('Wind'), metric_row('Humidity'), metric_row('Precip 1hr'), metric_row('Pressure')],
+        [metric_row('Temp'), metric_row('Feels Like'), metric_row('Wind'), metric_row('Humidity'), metric_row('Precip 1hr'), metric_row('Pressure')],
             pad=((15, 0), (25, 5)), key='RtCOL')
 
     layout = [[top_col], [lf_col, rt_col], [bot_col]]
@@ -266,8 +268,8 @@ def main(refresh_rate):
         if event == '-CHANGE-':
             change_city(window)
         else:
-         window['-TMP-'].update("Room Temp: " + str( res['temp'])+ chr(176)+ "C")
-         window['-LTL-'].update("Light: "+ str( res['lightLevel']))
+         window['-TMP-'].update(str( res['roomTemp']))
+         window['-LTL-'].update("Room Light: "+ str( res['lightLevel']))
          window['-CPU-'].update("CPU Temp: "+ str(measure_cpu_temp()))
 
         # Update per refresh rate
