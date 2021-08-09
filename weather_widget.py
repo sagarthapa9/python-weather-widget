@@ -1,4 +1,7 @@
 import datetime
+import time
+from datetime import datetime 
+from serial import Serial
 import base64
 from urllib import request
 import json
@@ -33,16 +36,74 @@ APP_DATA = {
     'Lat':0,
     'Lon':0
 }
+microbit_data = {
+    'temp': 0,
+    'lightLevel': 0,
+}
 
 API_KEY = "92578d9ab5b8dbadfefe56e291d15030"
+
+def load_serial_data():
+    nxtLtlPoll = 0.0
+    nxtTmpPoll = 0.0
+    serialDevDir='/dev/serial/by-id'
+    if ( os.path.isdir(serialDevDir) ):
+        serialDevices = os.listdir(serialDevDir) 
+
+        if ( len(serialDevices) > 0 ):
+
+            serialDevicePath = os.path.join(serialDevDir, serialDevices[0])
+            serial = Serial(port=serialDevicePath, baudrate=115200, timeout=0.5) 
+
+            while( True ):
+
+                receivedMsg = serial.readline() 
+                if ( (len(receivedMsg) >= 4) and (receivedMsg[3] == b':'[0])):
+
+                    msgType = receivedMsg[0:3] 
+                    msgData = receivedMsg[4:]
+
+                    if ( msgType == b'TIM' ):
+                        timeString = datetime.now().strftime('%H:%M') 
+                        sendMsg = b'TIM:' + timeString.encode('ascii')
+                        serial.write(sendMsg + b'\n')
+
+                    elif ( msgType == b'DAT' ):
+                        dateString = datetime.now().strftime('%d-%b-%Y') 
+                        sendMsg = b'DAT:' + dateString.encode('ascii')
+                        serial.write(sendMsg + b'\n')
+                    
+                    elif ( msgType == b'TMP' ):
+                           microbit_data['temp'] = msgData.decode('ascii').rstrip()
+                           
+                    elif ( msgType == b'LTL' ):
+                        microbit_data['lightLevel'] = msgData.decode('ascii').rstrip()
+                        
+                    return microbit_data
+                    
+                currentTime = time.time() 
+                if ( currentTime > nxtLtlPoll ):
+                    serial.write(b'LTL:\n' )
+                    nxtLtlPoll = currentTime + 5.0
+                    
+                if(currentTime > nxtTmpPoll):
+                    serial.write(b'TMP:\n')
+                    nxtTmpPoll = currentTime + 2.0 
+                    
+                else:
+
+                 print('No serial devices connected') 
+
+        else:
+
+             print('No serial devices connected') 
 
 def create_endpoint(endpoint_type=0):
     """ Create the api request endpoint
     {0: default, 1: zipcode, 2: city_name}"""
     if endpoint_type == 1:
         try:
-            #endpoint = f"http://api.openweathermap.org/data/2.5/hourly?lat={APP_DATA['Lat']}&lon={APP_DATA['Lon']}&appid={API_KEY}&units={APP_DATA['Units']}"
-            endpoint = f" https://api.openweathermap.org/data/2.5/onecall?lat={APP_DATA['Lat']}&lon={APP_DATA['Lon']}&exclude=minutely,hourly&appid={API_KEY}"
+            endpoint = f"http://api.openweathermap.org/data/2.5/hourly?lat={APP_DATA['Lat']}&lon={APP_DATA['Lon']}&appid={API_KEY}&units={APP_DATA['Units']}"
             return endpoint
         except ConnectionError:
             return
@@ -96,9 +157,13 @@ def metric_row(metric):
 def create_window():
     """ Create the application window """
     col1 = sg.Column(
-        [[sg.Text(APP_DATA['City'], font=('Arial Rounded MT Bold', 18), pad=((10, 0), (50, 0)), size=(18, 1), background_color=BG_COLOR, text_color=TXT_COLOR, key='City')],
+        [[sg.Text( APP_DATA['City'], font=('Arial Rounded MT Bold', 18), pad=((10, 0), (50, 0)), size=(18, 1), background_color=BG_COLOR, text_color=TXT_COLOR, key='City')],
         [sg.Text(APP_DATA['Description'], font=('Arial', 12), pad=(10, 0), background_color=BG_COLOR, text_color=TXT_COLOR, key='Description')]],
             background_color=BG_COLOR, key='COL1')
+
+    col_serial_data = sg.Column(
+    [[sg.Text("Room Temp: "+ str(microbit_data['temp']), font=('Arial Rounded MT Bold', 12), pad=((10, 0), (50, 0)), size=(18, 1), background_color=BG_COLOR, text_color=TXT_COLOR, key='-TMP-')]],
+        background_color=BG_COLOR, key='COLS')
 
     col2 = sg.Column(
         [[sg.Text('×', font=('Arial Black', 16), pad=(0, 0), justification='right', background_color=BG_COLOR, text_color=TXT_COLOR, enable_events=True, key='-QUIT-')],
@@ -113,7 +178,7 @@ def create_window():
         [[sg.Text('click to change city', font=('Arial', 8, 'italic'), background_color=BG_COLOR, text_color=TXT_COLOR, enable_events=True, key='-CHANGE-')]],
             pad=(10, 5), element_justification='right', background_color=BG_COLOR, key='COL4')
 
-    top_col = sg.Column([[col1, col2]], pad=(0, 0), background_color=BG_COLOR, key='TopCOL')
+    top_col = sg.Column([[col1, col_serial_data, col2]], pad=(0, 0), background_color=BG_COLOR, key='TopCOL')
 
     bot_col = sg.Column([[col3, col4]], pad=(0, 0), background_color=BG_COLOR, key='BotCOL')
 
@@ -130,7 +195,7 @@ def create_window():
     window = sg.Window(layout=layout, title='Weather Widget', size=(480, 320), margins=(0, 0), finalize=True, 
         element_justification='center', keep_on_top=True, no_titlebar=True, grab_anywhere=True, alpha_channel=ALPHA)
     window.Maximize()
-    for col in ['COL1', 'COL2', 'TopCOL', 'BotCOL', '-QUIT-']:
+    for col in ['COL1','COLS', 'COL2', 'TopCOL', 'BotCOL', '-QUIT-']:
         window[col].expand(expand_y=True, expand_x=True)
 
     for col in ['COL3', 'COL4', 'LfCOL', 'RtCOL']:
@@ -189,10 +254,15 @@ def main(refresh_rate):
     # Event loop
     while True:
         event, _ = window.read(timeout=timeout_minutes)
+        res= load_serial_data()
+
         if event in (None, '-QUIT-'):
             break
         if event == '-CHANGE-':
             change_city(window)
+        else:
+         window['-TMP-'].update(res['temp'])
+         window['-LTL-'].update(res['lightLevel'])
 
         # Update per refresh rate
         request_weather_data(create_endpoint(2))
